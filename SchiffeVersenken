@@ -1,0 +1,340 @@
+#define _CRT_SECURE_NO_WARNINGS
+#include <stdio.h>
+
+#define SIZE 10 // game field size
+
+//////////////////////////
+//   HELPER FUNCTIONS   //
+//////////////////////////
+//... get_ship_size(...){...}... ship_is_destroyed(...){...}... ship_size_to_string(...){...}... calc_remained_ship_parts(...){...}... some_other_function_you_need(...) { ... }
+
+/////////////////////////////
+//   TOP LEVEL FUNCTIONS   //
+/////////////////////////////
+/**
+ * Function to initialize the game field
+ */
+void init_field(char field[SIZE][SIZE])
+{
+    for (int i = 0; i < SIZE; i++)
+        for (int j = 0; j < SIZE; j++)
+            field[i][j] = '.';
+}
+
+/**
+ *  Function to print the game field
+ */
+void print_field(char field[SIZE][SIZE])
+{
+    // print first row
+    printf("  ABCDEFGHIJ\n");
+
+    // loop over field and print every char
+    for (int i = 0; i < SIZE; i++)
+    {
+        printf("%2d", i + 1); // print column number
+        for (int j = 0; j < SIZE; j++)
+        {
+            printf("%c", field[i][j]);
+        }
+        printf("\n");
+    }
+    printf("\n");
+}
+
+/**
+ * Function to read the ship positions from the input stream
+ */
+void read_ship_positions_from_input(char field[SIZE][SIZE])
+{
+    char startZeile, endeZeile;
+    int startSpalte, endeSpalte;
+    char werte[20];
+
+    int i = 0;
+    printf("Geben sie die Schiffspositionen an:\n");
+    while (1)
+    {
+
+        // Einen einzigen Wert einlesen
+        scanf("%s", werte);
+
+        // Abbruchbedingung
+        if (werte[0] == 'e')
+        {
+            break;
+        }
+
+        // Wert aufteilen
+        if (sscanf(werte, "%c%d-%c%d", &startZeile, &startSpalte, &endeZeile, &endeSpalte) == 4)
+        {
+            for (int i = startSpalte - 1; i <= endeSpalte - 1; i++)
+            {
+                for (int j = startZeile - 'A'; j <= endeZeile - 'A'; j++)
+                {
+                    field[i][j] = '#'; // Schiff auf dem Feld platzieren
+                }
+            }
+        }
+    }
+}
+
+const char *SchiffTyp(int size)
+{
+    switch (size)
+    {
+    case 2:
+        return "U-Boot";
+    case 3:
+        return "Zerstörer";
+    case 4:
+        return "Kreuzer";
+    case 5:
+        return "Schlachtschiff";
+    default:
+        return "Unbekannt"; // Default für nicht definierte Schiffsgrößen
+    }
+}
+
+int IsShipDestroyed(char field[SIZE][SIZE], int x, int y, int *shiffTyp)
+{
+    // Startgröße des Schiffes auf 1 setzen
+    int shiffGroesse = 1;
+    int tempGroesse = 0;
+
+    // Überprüfen nach oben
+    for (int i = x - 1; i >= 0; i--)
+    {
+        if (field[i][y] == '.' || field[i][y] == 'O')
+            break; // Leeres oder bereits getroffenes Feld
+        if (field[i][y] == '#')
+            return 0; // Ein intakter Teil wurde gefunden
+        tempGroesse++;
+    }
+    shiffGroesse = shiffGroesse + tempGroesse;
+
+    // Überprüfen nach unten
+    tempGroesse = 0; // Temporäre Zählvariable zurücksetzen
+    for (int i = x + 1; i < SIZE; i++)
+    {
+        if (field[i][y] == '.' || field[i][y] == 'O')
+            break;
+        if (field[i][y] == '#')
+            return 0;
+        tempGroesse++;
+    }
+    shiffGroesse = shiffGroesse + tempGroesse;
+
+    // Überprüfen nach links
+    tempGroesse = 0;
+    for (int j = y - 1; j >= 0; j--)
+    {
+        if (field[x][j] == '.' || field[x][j] == 'O')
+            break;
+        if (field[x][j] == '#')
+            return 0;
+        tempGroesse++;
+    }
+    shiffGroesse = shiffGroesse + tempGroesse;
+
+    // Überprüfen nach rechts
+    tempGroesse = 0;
+    for (int j = y + 1; j < SIZE; j++)
+    {
+        if (field[x][j] == '.' || field[x][j] == 'O')
+            break;
+        if (field[x][j] == '#')
+            return 0;
+        tempGroesse++;
+    }
+    shiffGroesse = shiffGroesse + tempGroesse;
+
+    // Die endgültige Größe des Schiffes speichern
+    *shiffTyp = shiffGroesse;
+    // Das Schiff ist vollständig zerstört
+    return 1;
+}
+
+// Wurde unnötig durch IsShipDestroyed (Vergessen wegzumachen)
+void getShipSize(char field[SIZE][SIZE])
+{
+    for (int x = 0; x < SIZE; x++)
+    {
+        for (int y = 0; y < SIZE; y++)
+        {
+            if (field[x][y] == 'X') // Wenn ein Schiffsteil gefunden wird
+            {
+                int size = 1;
+                // char richtung = '\0';
+
+                // Prüfe auf horizontale Ausrichtung
+                if (y + 1 < SIZE && field[x][y + 1] == 'X')
+                {
+                    // richtung = 'w'; // Horizontal
+                    for (int i = y + 1; i < SIZE && field[x][i] == 'X'; i++)
+                    {
+                        size++;
+                    }
+                }
+                // Prüfe auf vertikale Ausrichtung
+                else if (x + 1 < SIZE && field[x + 1][y] == 'X')
+                {
+                    // richtung = 's'; // Vertikal
+                    for (int i = x + 1; i < SIZE && field[i][y] == 'X'; i++)
+                    {
+                        size++;
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Function to iterate the game loop
+ */
+void play_game(char field[SIZE][SIZE])
+{
+    char schuss[20];
+    char zeile;
+    int spalte;
+    int treffer = 0, fehlschuss = 0;
+    int uebrigeSchifffe;
+
+    while (1)
+    {
+        // Zählt die verbleibenden Schiffsteile auf dem Spielfeld
+        uebrigeSchifffe = 0;
+        for (int x = 0; x < SIZE; x++)
+        {
+            for (int y = 0; y < SIZE; y++)
+            {
+                if (field[x][y] == '#')
+                {
+                    uebrigeSchifffe++;
+                }
+            }
+        }
+
+        // Wenn keine Schiffe mehr übrig sind, Spiel beenden
+        if (uebrigeSchifffe == 0)
+        {
+            printf("\nAlle Schiffe wurden versenkt\n");
+            break;
+        }
+
+        scanf("%s", schuss);
+
+        // Abbruchbedingung
+        if (schuss[0] == 'x')
+        {
+            printf("\nDas Spiel wurde beendet.\n");
+            break;
+        }
+
+        // Werte aufteilen und Koordinaten prüfen
+        if (sscanf(schuss, "%c%d", &zeile, &spalte) == 2)
+        {
+            int x = spalte - 1;  // Umrechnung in Index
+            int y = zeile - 'A'; // Umrechnung in Index
+
+            // Wenn ein Schiff getroffen wird
+            if (field[x][y] == '#')
+            {
+                // Markiere das getroffene Schiffsteil
+                field[x][y] = 'X';
+                treffer++;
+
+                // Überprüfen, ob das Schiff versenkt wurde
+                int shiffGroesse = 0;
+                if (IsShipDestroyed(field, x, y, &shiffGroesse))
+                {
+                    // Wenn das Schiff versenkt wurde, gib den Schiffstyp aus
+                    printf("%c%d Getroffen! %s wurde versenkt!\n", zeile, spalte, SchiffTyp(shiffGroesse));
+                }
+                else
+                {
+                    // Wenn nur das Schiff getroffen wurde, aber noch nicht versenkt
+                    printf("%c%d Getroffen!\n", zeile, spalte);
+                }
+
+                // Wurde unnötig durch IsShipDestroyed (Vergessen wegzumachen)
+                getShipSize(field);
+            }
+            // Wenn ein Fehlschuss ins Wasser ('.') erfolgt
+            else if (field[x][y] == '.')
+            {
+                field[x][y] = 'O';
+                printf("%c%d Fehlschuss!\n", zeile, spalte);
+                fehlschuss++;
+            }
+        }
+    }
+
+    printf(" \n");
+}
+
+/**
+ * Evaluate game and print final result with hit score
+ */
+void evaluate_and_print_results(char field[SIZE][SIZE])
+{
+    int treffer = 0;
+    int fehlschuss = 0;
+
+    for (int x = 0; x < SIZE; x++)
+    {
+        for (int y = 0; y < SIZE; y++)
+        {
+            if (field[x][y] == 'X')
+            {
+                treffer++;
+            }
+            else if (field[x][y] == 'O')
+            {
+                fehlschuss++;
+            }
+        }
+    }
+
+    int totalSchüsse = treffer + fehlschuss;
+    double trefferQuote = 0;
+
+    // Spielfeld ausgeben
+    printf("  ABCDEFGHIJ\n");
+    for (int i = 0; i < SIZE; i++)
+    {
+        printf("%2d", i + 1);
+        for (int j = 0; j < SIZE; j++)
+        {
+            printf("%c", field[i][j]);
+        }
+        printf("\n");
+    }
+    printf("\n");
+
+    if (totalSchüsse == 0)
+    {
+        trefferQuote = 0;
+    }
+    else
+    {
+        trefferQuote = (double)treffer / totalSchüsse * 100;
+    }
+    printf("Trefferquote: %.0f%%\n", trefferQuote);
+}
+////////////////////////////
+//	MAIN FUNCTION
+////////////////////////////
+int main(/**int argc, char *argv[] */)
+{
+    char field[SIZE][SIZE];
+    init_field(field);
+    read_ship_positions_from_input(field);
+    print_field(field);
+    // Wurde unnötig durch IsShipDestroyed (Vergessen wegzumachen)
+    // getShipSize(field);
+    play_game(field);
+    evaluate_and_print_results(field);
+    return 0;
+}
